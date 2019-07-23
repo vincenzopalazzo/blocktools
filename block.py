@@ -10,6 +10,7 @@ class BlockHeader:
         self.time = uint4(blockchain)
         self.bits = uint4(blockchain)
         self.nonce = uint4(blockchain)
+
     def toString(self):
         print "Version:\t %d" % self.version
         print "Previous Hash\t %s" % hashStr(self.previousHash)
@@ -17,6 +18,7 @@ class BlockHeader:
         print "Time stamp\t "+ self.decodeTime(self.time)
         print "Difficulty\t %d" % self.bits
         print "Nonce\t\t %s" % self.nonce
+
     def decodeTime(self, time):
         utc_time = datetime.utcfromtimestamp(time)
         return utc_time.strftime("%Y-%m-%d %H:%M:%S.%f+00:00 (UTC)")
@@ -106,7 +108,7 @@ class Tx:
         self.inputs = []
         self.seq = 1
         for i in range(0, self.inCount):
-            input = txInput(blockchain)
+            input = txInput(blockchain, self.isWintness)
             self.inputs.append(input)
         self.outCount = varint(blockchain)
         self.outputs = []
@@ -114,10 +116,9 @@ class Tx:
             for i in range(0, self.outCount):
                 output = txOutput(blockchain)
                 self.outputs.append(output)
-        # TODO read the list of wintness
+        # TODO read the list of witness
         self.wintness = []
         if self.isWintness:
-
             for i in range(0, self.inCount):
                 singleWintness = txWintness(blockchain)
                 self.wintness.append(singleWintness)
@@ -134,23 +135,31 @@ class Tx:
         print "Outputs:\t %d" % self.outCount
         for o in self.outputs:
             o.toString()
+        if self.isWintness == True:
+            for w in self.wintness:
+                w.toString()
         print "Lock Time:\t %d" % self.lockTime
 
 class txInput:
-    def __init__(self, blockchain):
+    def __init__(self, blockchain, isWitness):
         self.prevhash = hash32(blockchain)
         self.txOutId = uint4(blockchain)
         self.scriptLen = varint(blockchain)
         self.scriptSig = blockchain.read(self.scriptLen)
         self.seqNo = uint4(blockchain)
+        self.isWitness = isWitness;
 
     def toString(self):
 #		print "\tPrev. Tx Hash:\t %s" % hashStr(self.prevhash)
         print "\tTx Out Index:\t %s" % self.decodeOutIdx(self.txOutId)
         print "\tScript Length:\t %d" % self.scriptLen
-#		print "\tScriptSig:\t %s" % 
-        self.decodeScriptSig(self.scriptSig)
+#		print "\tScriptSig:\t %s" %
+        if self.isWitness == False:
+            #if the raw transaction is witness the scriptSig MUST ONLY contain a push of the redeemScript
+            #without this is the parser generate an exception
+            self.decodeScriptSig(self.scriptSig)
         print "\tSequence:\t %8x" % self.seqNo
+
     def decodeScriptSig(self,data):
         hexstr = hashStr(data)
         if 0xffffffff == self.txOutId: #Coinbase
@@ -218,7 +227,8 @@ class txOutput:
             print "\t Need to extend multi-signatuer parsing %x" % int(hexstr[0:2],16) + op_code1
             return hexstr
 
-# author https://github.com/vincenzopalazzo added support to tx Wintness
+# author https://github.com/vincenzopalazzo added support to tx Segregated Witness
+# https://bitcoincore.org/en/segwit_wallet_dev/
 class txWintness:
 
     def __init__(self, blockchain):
@@ -228,3 +238,24 @@ class txWintness:
             self.numbar_tx_wintness = varint(blockchain)
             self.scriptWintness = blockchain.read(self.numbar_tx_wintness)
             #print("Script readed: %s" % self.scriptWintness)
+
+    def toString(self):
+        print "====================|> Input transaction witness <|===================="
+        print "Dimension script:\t %i" % self.compactSize
+        #self.decodeScriptSig(self.scriptWintness)
+    #This introducing another change to scripting bitcoin core, look BIP 143
+    def decodeScriptSig(self, data):
+        hexstr = hashStr(data)
+        if 0xffffffff == self.txOutId:  # Coinbase
+            return hexstr
+        scriptLen = int(hexstr[0:2], 16)
+        scriptLen *= 2
+        script = hexstr[2:2 + scriptLen]
+        print "\tScript:\t\t " + script
+        if SIGHASH_ALL != int(hexstr[scriptLen:scriptLen + 2], 16):  # should be 0x01
+            print "\t Script op_code is not SIGHASH_ALL"
+            return hexstr
+        else:
+           pubkey = hexstr[2 + scriptLen + 2:2 + scriptLen + 2 + 66]
+           print " \tInPubkey:\t " + pubkey
+            #		return hexstr

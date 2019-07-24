@@ -92,7 +92,7 @@ class Tx:
     def __init__(self, blockchain):
         self.version = uint4(blockchain)
         self.inCount = varint(blockchain)
-        self.isWintness = False
+        self.isWitness = False
         if self.inCount == 0x00:
             print
             "I founded the mark"
@@ -102,13 +102,13 @@ class Tx:
                 print
                 "I founded the flag"
                 print
-                "This tx is a tx Wintness"
-                self.isWintness = True
+                "This tx is a tx Wintess"
+                self.isWitness = True
                 self.inCount = varint(blockchain)
         self.inputs = []
         self.seq = 1
         for i in range(0, self.inCount):
-            input = txInput(blockchain, self.isWintness)
+            input = txInput(blockchain, self.isWitness)
             self.inputs.append(input)
         self.outCount = varint(blockchain)
         self.outputs = []
@@ -116,12 +116,12 @@ class Tx:
             for i in range(0, self.outCount):
                 output = txOutput(blockchain)
                 self.outputs.append(output)
-        # TODO read the list of witness
-        self.wintness = []
-        if self.isWintness:
+        #reading the list of witness
+        self.witness = []
+        if self.isWitness:
             for i in range(0, self.inCount):
-                singleWintness = txWintness(blockchain)
-                self.wintness.append(singleWintness)
+                singleWitness = txWitness(blockchain)
+                self.witness.append(singleWitness)
         self.lockTime = uint4(blockchain)
 
     def toString(self):
@@ -135,8 +135,8 @@ class Tx:
         print "Outputs:\t %d" % self.outCount
         for o in self.outputs:
             o.toString()
-        if self.isWintness == True:
-            for w in self.wintness:
+        if self.isWitness == True:
+            for w in self.witness:
                 w.toString()
         print "Lock Time:\t %d" % self.lockTime
 
@@ -227,35 +227,22 @@ class txOutput:
             print "\t Need to extend multi-signatuer parsing %x" % int(hexstr[0:2],16) + op_code1
             return hexstr
 
-# author https://github.com/vincenzopalazzo added support to tx Segregated Witness
+# @author https://github.com/vincenzopalazzo added support to tx Segregated Witness
 # https://bitcoincore.org/en/segwit_wallet_dev/
-class txWintness:
+class txWitness:
 
     def __init__(self, blockchain):
         self.compactSize = varint(blockchain)
-        #print("Dimension compact size and it is equal to: %s" % self.compactSize)
+        #print("****** DEBUG ****** Dimension compact size and it is equal to: %s" % self.compactSize)
         for i in range (0, self.compactSize):
-            self.numbar_tx_wintness = varint(blockchain)
-            self.scriptWintness = blockchain.read(self.numbar_tx_wintness)
-            #print("Script readed: %s" % self.scriptWintness)
+            self.numbar_tx_witness = varint(blockchain)
+            self.scriptWitness = blockchain.read(self.numbar_tx_witness)
+            #print("****** DEBUG ****** Script readed: %s" % self.scriptWitness)
 
     def toString(self):
         print "====================|> Input transaction witness <|===================="
         print "Dimension script:\t %i" % self.compactSize
-        #self.decodeScriptSig(self.scriptWintness)
-    #This introducing another change to scripting bitcoin core, look BIP 143
-    def decodeScriptSig(self, data):
-        hexstr = hashStr(data)
-        if 0xffffffff == self.txOutId:  # Coinbase
-            return hexstr
-        scriptLen = int(hexstr[0:2], 16)
-        scriptLen *= 2
-        script = hexstr[2:2 + scriptLen]
-        print "\tScript:\t\t " + script
-        if SIGHASH_ALL != int(hexstr[scriptLen:scriptLen + 2], 16):  # should be 0x01
-            print "\t Script op_code is not SIGHASH_ALL"
-            return hexstr
-        else:
-           pubkey = hexstr[2 + scriptLen + 2:2 + scriptLen + 2 + 66]
-           print " \tInPubkey:\t " + pubkey
-            #		return hexstr
+        #self.decodeScriptWitness(self.scriptWitness)
+
+    #TODO This introducing another change to scripting bitcoin core, look BIP 143
+    #def decodeScriptWitness(self, data):
